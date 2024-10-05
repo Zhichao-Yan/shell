@@ -1,11 +1,14 @@
 CC = gcc
-CFLAGS =
+CFLAGS = -g -Wall
 
-shell: shell.o
-	$(CC) $(CFLAGS) -o shell shell.o
 
-shell.o: shell.c
-	$(CC) $(CFLAGS) -c shell.c
+all: shell test
+
+shell: shell.c
+	$(CC) $(CFLAGS) -o shell shell.c
+
+test: test.c
+	$(CC) $(CFLAGS) -o test test.c
 
 clean:
-	rm -f shell.o shell
+	rm -f shell test
