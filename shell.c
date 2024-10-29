@@ -114,11 +114,12 @@ static int redirect(char *buf,char *type,char *file)
 }
 
 
+
 /* 
  *  when press ctrl+Z,trigger this 
  *  send SIGSTOP to  foreground job
  */
-void signal_tstp_handler(int sig)
+void SIGTSTP_HANDLER(int sig)
 {
     if (process_id > 0) {
         kill(process_id, SIGSTOP);
@@ -129,7 +130,7 @@ void signal_tstp_handler(int sig)
 /*  when background job finished
  *  handle the SIGCHLD signal
  */
-void signal_child_handler(int sig)
+void SIGCHLD_HANDLER(int sig)
 {
     int status;
     pid_t pid;
@@ -142,6 +143,11 @@ void signal_child_handler(int sig)
                 if (WIFEXITED(status))
                 {
                     job_list[i].status = Done; // Update jobs status to DONE
+                }else if (WIFSIGNALED(status))
+                {
+                    int signal_num = WTERMSIG(status);
+                    printf("PID process %d ended by signal %d\n", pid, signal_num);
+                    job_list[i].status = Done; 
                 }
                 break;
             }
@@ -156,8 +162,8 @@ int main()
     printf("|==================|\n");
     /* signal handle */
     signal(SIGINT, SIG_IGN);
-    signal(SIGCHLD, signal_child_handler);
-    signal(SIGTSTP, signal_tstp_handler);
+    signal(SIGCHLD, SIGCHLD_HANDLER);
+    signal(SIGTSTP, SIGTSTP_HANDLER);
 
     /* shell user */
     char *prompt = getenv("USER");
@@ -218,19 +224,37 @@ int main()
         char *argv[MAX_ARGS];
         int argc = parseline(buf,argv);
 
-        /* if argv[0] is NULL */
-        if(argv[0] == NULL)
-        {
+        /* ---------- blank input  ---------- */
+        if(argv[0] == NULL) 
             continue;
-        }
 
-        /* jobs */
+        /* ---------- jobs  ---------- */
         if (strcmp(argv[0], "jobs") == 0)
         {
             jobs();
             continue;
         }
-        /* export */
+        /* ---------- kill ---------- */
+        if (strcmp(argv[0], "kill") == 0)
+        {
+            if (argv[1] != NULL)
+            {
+                int pid = atoi(argv[1]);
+                int signal_num = SIGTERM;
+                if (argv[2] != NULL)
+                {
+                    signal_num = atoi(argv[2]);
+                }
+                kill(pid, signal_num);
+            }else{
+                printf("Usage: kill <pid> [signal]\n");
+                printf("SIGTERM (15) || SIGKILL (9)  || SIGINT (2)\n");
+                printf("SIGSTOP (17) || SIGTSTP (20) || SIGCONT (18)\n");
+            }
+            continue;
+        }
+
+        /* ---------- export ---------- */
         if (strcmp(argv[0], "export") == 0 && argv[1] != NULL)
         {
             char buf[100] = {'\0'};
@@ -278,7 +302,7 @@ int main()
             continue;
         }
 
-        /* foreground and background */
+        /* ---------- foreground and background ---------- */
         int bg = 0;
         if (argc > 0) // Check if last argument is "&"
         {
@@ -303,9 +327,7 @@ int main()
             }
         }
 
-        /* ---------- blank input  ---------- */
-        if(argv[0] == NULL) 
-            continue;
+
 
         /* ---------- exit  ---------- */
         if (strcmp(argv[0], "exit") == 0)
