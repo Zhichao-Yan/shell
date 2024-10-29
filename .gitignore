@@ -54,3 +54,4 @@ dkms.conf
 .shell_history
 test
 shell
+test.c
