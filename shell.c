@@ -114,6 +114,17 @@ static int redirect(char *buf,char *type,char *file)
 }
 
 
+/* 
+ *  when press ctrl+C,trigger this 
+ *  send SIGINT to  foreground job
+ */
+void SIGINT_HANDLER(int sig)
+{
+    if (process_id > 0) {
+        kill(process_id, SIGINT);
+    }
+    return;
+}
 
 /* 
  *  when press ctrl+Z,trigger this 
@@ -140,13 +151,14 @@ void SIGCHLD_HANDLER(int sig)
         {
             if (job_list[i].pid == pid)
             {
+                /* child process exit normally */
                 if (WIFEXITED(status))
                 {
-                    job_list[i].status = Done; // Update jobs status to DONE
-                }else if (WIFSIGNALED(status))
+                    job_list[i].status = Done;  //  update jobs status to DONE
+                }else if (WIFSIGNALED(status))  //  child process finished because of signals
                 {
                     int signal_num = WTERMSIG(status);
-                    printf("PID process %d ended by signal %d\n", pid, signal_num);
+                    printf("PID process %d ended by signal %d", pid, signal_num);
                     job_list[i].status = Done; 
                 }
                 break;
@@ -161,7 +173,7 @@ int main()
     printf("|    LINUX SHELL   |\n");
     printf("|==================|\n");
     /* signal handle */
-    signal(SIGINT, SIG_IGN);
+    signal(SIGINT, SIGINT_HANDLER);
     signal(SIGCHLD, SIGCHLD_HANDLER);
     signal(SIGTSTP, SIGTSTP_HANDLER);
 
@@ -178,9 +190,6 @@ int main()
     /* shell command history file */
     FILE *history_file = fopen(".shell_history", "a");
     fclose(history_file);
-
-    /* the executable program in PATH directories */
-    // char command[MAX_INPUT];
 
     while(1)
     {
@@ -378,11 +387,6 @@ int main()
                 printf("environ[%2d]: %s\n",i,environ[i]);
             }
             continue;
-        }
-        /* ---------- kill ----------- */
-        if (strcmp(argv[0], "kill") == 0)
-        {
-
         }
 
         /* ---------- echo  ---------- */
